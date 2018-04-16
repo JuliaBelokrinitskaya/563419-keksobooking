@@ -1,5 +1,81 @@
 'use strict';
 
+/**
+ * Наименьшая x-координата метки
+ * @const
+ * @type {number}
+ */
+var MIN_X_LOCATION = 300;
+
+/**
+ * Наибольшая x-координата метки
+ * @const
+ * @type {number}
+ */
+var MAX_X_LOCATION = 900;
+
+/**
+ * Наименьшая y-координата метки
+ * @const
+ * @type {number}
+ */
+var MIN_Y_LOCATION = 150;
+
+/**
+ * Наибольшая y-координата метки
+ * @const
+ * @type {number}
+ */
+var MAX_Y_LOCATION = 500;
+
+/**
+ * Наименьшая цена
+ * @const
+ * @type {number}
+ */
+var MIN_PRICE = 1000;
+
+/**
+ * Наибольшая цена
+ * @const
+ * @type {number}
+ */
+var MAX_PRICE = 1000000;
+
+/**
+ * Наибольшее количество комнат
+ * @const
+ * @type {number}
+ */
+var MAX_ROOMS_COUNT = 5;
+
+/**
+ * Ширина метки
+ * @const
+ * @type {number}
+ */
+var PIN_WIDTH = 50;
+
+/**
+ * Высота метки
+ * @const
+ * @type {number}
+ */
+var PIN_HEIGHT = 70;
+
+/**
+ * Количество похожих объявлений
+ * @const
+ * @type {number}
+ */
+var SIMILAR_NOTICES_COUNT = 8;
+
+var HOURS = [
+  '12:00',
+  '13:00',
+  '14:00'
+];
+
 var NOTICE_TITLES = [
   'Большая уютная квартира',
   'Маленькая неуютная квартира',
@@ -74,14 +150,13 @@ var getRandomItem = function (items) {
 /**
  * Функция, генерирующая объявление случайным образом.
  * @callback generateNoticeCallback
- * @param {string} userNumber - номер пользователя вида '0X',
- * где X - однозначное число
+ * @param {number} userNumber - номер пользователя (однозначное число)
  * @param {string} noticeTitle - заголовок объявления
  * @return {Object} - JS объект, описывающий объявление
  */
 var generateRandomNotice = function (userNumber, noticeTitle) {
-  var locationX = getRandomNumber(300, 900);
-  var locationY = getRandomNumber(150, 500);
+  var locationX = getRandomNumber(MIN_X_LOCATION, MAX_X_LOCATION);
+  var locationY = getRandomNumber(MIN_Y_LOCATION, MAX_Y_LOCATION);
   var featuresList = [];
 
   for (var k = 0; k < PROPERTY_FEATURES.length; k++) {
@@ -92,17 +167,17 @@ var generateRandomNotice = function (userNumber, noticeTitle) {
 
   return {
     author: {
-      avatar: 'img/avatars/user' + userNumber + '.png'
+      avatar: 'img/avatars/user0' + userNumber + '.png'
     },
     offer: {
       title: noticeTitle,
       address: locationX + ', ' + locationY,
-      price: getRandomNumber(1000, 1000000),
+      price: getRandomNumber(MIN_PRICE, MAX_PRICE),
       type: getRandomItem(Object.keys(PROPERTY_TYPES)),
-      rooms: getRandomNumber(1, 5),
-      guests: getRandomNumber(1, 5),
-      checkin: getRandomNumber(12, 14) + ':00',
-      checkout: getRandomNumber(12, 14) + ':00',
+      rooms: getRandomNumber(1, MAX_ROOMS_COUNT),
+      guests: getRandomNumber(1, MAX_ROOMS_COUNT),
+      checkin: getRandomItem(HOURS),
+      checkout: getRandomItem(HOURS),
       features: featuresList,
       description: '',
       photos: shuffle(PROPERTY_PHOTOS)
@@ -121,20 +196,14 @@ var generateRandomNotice = function (userNumber, noticeTitle) {
  * @return {Array.<Object>}
  */
 var generateNotices = function (generateNotice, length) {
-  var userNumbers = [];
   var titles = shuffle(NOTICE_TITLES);
   var notices = [];
 
   for (var i = 0; i < length; i++) {
-    userNumbers[i] = '0' + (i + 1);
-  }
-  userNumbers = shuffle(userNumbers);
-
-  for (var j = 0; j < length; j++) {
-    notices[j] = generateNotice(userNumbers[j], titles[j]);
+    notices[i] = generateNotice(i + 1, titles[i]);
   }
 
-  return notices;
+  return shuffle(notices);
 };
 
 /**
@@ -148,8 +217,8 @@ var renderPin = function (notice, pinTemplate) {
   var pinElement = pinTemplate.cloneNode(true);
   var pinAvatar = pinElement.querySelector('img');
 
-  pinElement.style.left = notice.location.x - 25 + 'px';
-  pinElement.style.top = notice.location.y - 35 + 'px';
+  pinElement.style.left = notice.location.x - PIN_WIDTH / 2 + 'px';
+  pinElement.style.top = notice.location.y - PIN_HEIGHT / 2 + 'px';
 
   pinAvatar.src = notice.author.avatar;
   pinAvatar.alt = notice.offer.title;
@@ -256,7 +325,7 @@ var activateMap = function () {
   var mapFilters = mapElement.querySelector('.map__filters-container');
   var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
 
-  var noticesData = generateNotices(generateRandomNotice, 8);
+  var noticesData = generateNotices(generateRandomNotice, SIMILAR_NOTICES_COUNT);
 
   mapElement.classList.remove('map--faded');
   renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
