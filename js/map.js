@@ -64,11 +64,25 @@ var PIN_WIDTH = 50;
 var PIN_HEIGHT = 70;
 
 /**
+ * Высота выступающей части метки пользователя
+ * @const
+ * @type {number}
+ */
+var USER_PIN_POINT_SHIFT = 16;
+
+/**
  * Количество похожих объявлений
  * @const
  * @type {number}
  */
 var SIMILAR_NOTICES_COUNT = 8;
+
+/**
+ * Код клавиши Enter
+ * @const
+ * @type {number}
+ */
+var ENTER_KEYCODE = 13;
 
 var HOURS = [
   '12:00',
@@ -108,6 +122,17 @@ var PROPERTY_PHOTOS = [
   'http://o0.github.io/assets/images/tokyo/hotel2.jpg',
   'http://o0.github.io/assets/images/tokyo/hotel3.jpg'
 ];
+
+var mapElement = document.querySelector('.map');
+var userPinElement = mapElement.querySelector('.map__pin--main');
+var mapPinsElement = mapElement.querySelector('.map__pins');
+var mapPinTemplate = document.querySelector('template').content.querySelector('.map__pin');
+var mapFiltersElement = mapElement.querySelector('.map__filters-container');
+var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
+var activeCard = null;
+var noticeFormElement = document.querySelector('.ad-form');
+var noticeFormFieldsets = noticeFormElement.querySelectorAll('fieldset');
+var addressInput = noticeFormElement.querySelector('#address');
 
 /**
  * Функция, выполняющая перестановку элементов массива случайным образом.
@@ -218,10 +243,20 @@ var renderPin = function (notice, pinTemplate) {
   var pinAvatar = pinElement.querySelector('img');
 
   pinElement.style.left = notice.location.x - PIN_WIDTH / 2 + 'px';
-  pinElement.style.top = notice.location.y - PIN_HEIGHT / 2 + 'px';
+  pinElement.style.top = notice.location.y - PIN_HEIGHT + 'px';
 
   pinAvatar.src = notice.author.avatar;
   pinAvatar.alt = notice.offer.title;
+
+  pinElement.addEventListener('click', function () {
+    openCard(notice);
+  });
+
+  pinElement.addEventListener('keydown', function (evt) {
+    if (evt.keyCode === ENTER_KEYCODE) {
+      openCard(notice);
+    }
+  });
 
   return pinElement;
 };
@@ -294,6 +329,7 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
   var featureTemplate = featuresElement.querySelector('.popup__feature');
   var photosElement = cardElement.querySelector('.popup__photos');
   var photoTemplate = photosElement.querySelector('.popup__photo');
+  var closeButton = cardElement.querySelector('.popup__close');
   var offer = notice.offer;
 
   fillTemplateWithText(cardElement, '.popup__title', offer.title);
@@ -311,25 +347,88 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
   cardElement.querySelector('.popup__avatar').src = notice.author.avatar;
 
   parentElement.insertBefore(cardElement, nextElement);
+  activeCard = cardElement;
+
+  closeButton.addEventListener('click', function () {
+    closeActiveCard();
+  });
+
+  closeButton.addEventListener('keydown', function (evt) {
+    if (evt.keyCode === ENTER_KEYCODE) {
+      closeActiveCard();
+    }
+  });
 };
 
 /**
- * Функция, активирующая карту с метками.
+ * Функция, открывающая карточку объявления.
+ * @param {Object} notice - объект, описывающий объявление
  */
-var activateMap = function () {
-  var mapElement = document.querySelector('.map');
-
-  var mapPinsElement = mapElement.querySelector('.map__pins');
-  var mapPinTemplate = document.querySelector('template').content.querySelector('.map__pin');
-
-  var mapFilters = mapElement.querySelector('.map__filters-container');
-  var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
-
-  var noticesData = generateNotices(generateRandomNotice, SIMILAR_NOTICES_COUNT);
-
-  mapElement.classList.remove('map--faded');
-  renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
-  renderCard(noticesData[0], mapElement, mapFilters, mapCardTemplate);
+var openCard = function (notice) {
+  if (activeCard) {
+    closeActiveCard();
+  }
+  renderCard(notice, mapElement, mapFiltersElement, mapCardTemplate);
 };
 
-activateMap();
+/**
+ * Функция, закрывающая текущую карточку объявления.
+ */
+var closeActiveCard = function () {
+  activeCard.remove();
+};
+
+/**
+ * Функция, переводящая страницу в неактивный режим.
+ */
+var deactivatePage = function () {
+  mapElement.classList.add('map--faded');
+  noticeFormElement.classList.add('ad-form--disabled');
+  for (var i = 0; i < noticeFormFieldsets.length; i++) {
+    noticeFormFieldsets[i].disabled = true;
+  }
+};
+
+/**
+ * Функция, переводящая страницу в активный режим.
+ */
+var activatePage = function () {
+  mapElement.classList.remove('map--faded');
+  noticeFormElement.classList.remove('ad-form--disabled');
+  for (var i = 0; i < noticeFormFieldsets.length; i++) {
+    noticeFormFieldsets[i].disabled = false;
+  }
+};
+
+/**
+ * Функция, определяющая адрес метки на карте.
+ * @param {boolean} isActive - находится ли страница в активном режиме
+ */
+var setAddress = function (isActive) {
+  var pinOffsetY = isActive ? (userPinElement.offsetHeight + USER_PIN_POINT_SHIFT) : (userPinElement.offsetHeight / 2);
+  var addressX = userPinElement.offsetLeft + userPinElement.offsetWidth / 2;
+  var addressY = userPinElement.offsetTop + pinOffsetY;
+
+  addressInput.value = addressX + ', ' + addressY;
+};
+
+/**
+ * Функция, отрисовывающая на карте метки похожих объявлений.
+ */
+var renderPins = function () {
+  var noticesData = generateNotices(generateRandomNotice, SIMILAR_NOTICES_COUNT);
+  renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
+};
+
+var inactiveUserPinMouseupHandler = function () {
+  activatePage();
+  renderPins();
+  userPinElement.removeEventListener('mouseup', inactiveUserPinMouseupHandler);
+};
+
+deactivatePage();
+setAddress();
+userPinElement.addEventListener('mouseup', inactiveUserPinMouseupHandler);
+userPinElement.addEventListener('mouseup', function () {
+  setAddress(true);
+});
