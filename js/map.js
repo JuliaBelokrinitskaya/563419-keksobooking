@@ -18,6 +18,15 @@ var PROPERTY_TYPES = {
   bungalo: 'Бунгало'
 };
 
+var PROPERTY_MIN_PRICES = {
+  palace: 10000,
+  flat: 1000,
+  house: 5000,
+  bungalo: 0
+};
+
+var NO_GUESTS_ROOMS_COUNT = 100;
+
 var PROPERTY_FEATURES = [
   'wifi',
   'dishwasher',
@@ -32,6 +41,14 @@ var PROPERTY_PHOTOS = [
   'http://o0.github.io/assets/images/tokyo/hotel2.jpg',
   'http://o0.github.io/assets/images/tokyo/hotel3.jpg'
 ];
+
+var noticeFormElement = document.querySelector('.ad-form');
+var typeSelect = noticeFormElement.querySelector('[name=type]');
+var priceInput = noticeFormElement.querySelector('[name=price]');
+var timeInSelect = noticeFormElement.querySelector('[name=timein]');
+var timeOutSelect = noticeFormElement.querySelector('[name=timeout]');
+var roomsCountSelect = noticeFormElement.querySelector('[name=rooms]');
+var capacitySelect = noticeFormElement.querySelector('[name=capacity]');
 
 /**
  * Функция, выполняющая перестановку элементов массива случайным образом.
@@ -245,6 +262,55 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
 };
 
 /**
+ * Функция, устанавливающая нижнюю границу цены и плейсхолдер в зависимости от типа помещения.
+ * @param {string} propertyType - тип помещения
+ */
+var setMinPrice = function (propertyType) {
+  var price = PROPERTY_MIN_PRICES[propertyType];
+  priceInput.min = price;
+  priceInput.placeholder = price;
+};
+
+/**
+ * Функция, синхронизирующая время заезда с временем выезда.
+ * @param {string} timeOut - время выезда
+ */
+var setTimeIn = function (timeOut) {
+  timeInSelect.value = timeOut;
+};
+
+/**
+ * Функция, синхронизирующая время выезда с временем заезда.
+ * @param {string} timeIn - время заезда
+ */
+var setTimeOut = function (timeIn) {
+  timeOutSelect.value = timeIn;
+};
+
+/**
+ * Функция, устанавливающая сообщение об ошибке для поля выбора количества гостей.
+ * @param {number} minGuests - минимальное количество гостей
+ * @param {(string|number)} maxGuests - минимальное количество гостей
+ * @param {string} validationMessage - сообщение об ошибке
+ */
+var setCapacityValidity = function (minGuests, maxGuests, validationMessage) {
+  var message = capacitySelect.value < minGuests || capacitySelect.value > maxGuests ? validationMessage : '';
+  capacitySelect.setCustomValidity(message);
+};
+
+/**
+ * Функция, выполняющая проверку поля выбора количества гостей в зависимости от выбранного количества комнат.
+ * @param {(string|number)} roomsCount - количество комнат
+ */
+var validateCapacity = function (roomsCount) {
+  if (roomsCount < NO_GUESTS_ROOMS_COUNT) {
+    setCapacityValidity(1, roomsCount, 'Количество гостей не должно превышать число комнат и должно быть больше 0.');
+  } else {
+    setCapacityValidity(0, 0, '100 комнат - не для гостей.');
+  }
+};
+
+/**
  * Функция, активирующая карту с метками.
  */
 var activateMap = function () {
@@ -264,3 +330,26 @@ var activateMap = function () {
 };
 
 activateMap();
+
+setMinPrice(typeSelect.value);
+validateCapacity(roomsCountSelect.value);
+
+typeSelect.addEventListener('change', function (evt) {
+  setMinPrice(evt.target.value);
+});
+
+timeInSelect.addEventListener('change', function (evt) {
+  setTimeOut(evt.target.value);
+});
+
+timeOutSelect.addEventListener('change', function (evt) {
+  setTimeIn(evt.target.value);
+});
+
+roomsCountSelect.addEventListener('change', function (evt) {
+  validateCapacity(evt.target.value);
+});
+
+capacitySelect.addEventListener('change', function (evt) {
+  validateCapacity(roomsCountSelect.value);
+});
