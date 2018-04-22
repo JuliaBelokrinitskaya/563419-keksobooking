@@ -1,5 +1,95 @@
 'use strict';
 
+/**
+ * Наименьшая x-координата метки
+ * @const
+ * @type {number}
+ */
+var MIN_X_LOCATION = 300;
+
+/**
+ * Наибольшая x-координата метки
+ * @const
+ * @type {number}
+ */
+var MAX_X_LOCATION = 900;
+
+/**
+ * Наименьшая y-координата метки
+ * @const
+ * @type {number}
+ */
+var MIN_Y_LOCATION = 150;
+
+/**
+ * Наибольшая y-координата метки
+ * @const
+ * @type {number}
+ */
+var MAX_Y_LOCATION = 500;
+
+/**
+ * Наименьшая цена
+ * @const
+ * @type {number}
+ */
+var MIN_PRICE = 1000;
+
+/**
+ * Наибольшая цена
+ * @const
+ * @type {number}
+ */
+var MAX_PRICE = 1000000;
+
+/**
+ * Наибольшее количество комнат
+ * @const
+ * @type {number}
+ */
+var MAX_ROOMS_COUNT = 5;
+
+/**
+ * Ширина метки
+ * @const
+ * @type {number}
+ */
+var PIN_WIDTH = 50;
+
+/**
+ * Высота метки
+ * @const
+ * @type {number}
+ */
+var PIN_HEIGHT = 70;
+
+/**
+ * Высота выступающей части метки пользователя
+ * @const
+ * @type {number}
+ */
+var USER_PIN_POINT_SHIFT = 16;
+
+/**
+ * Количество похожих объявлений
+ * @const
+ * @type {number}
+ */
+var SIMILAR_NOTICES_COUNT = 8;
+
+/**
+ * Код клавиши Enter
+ * @const
+ * @type {number}
+ */
+var ENTER_KEYCODE = 13;
+
+var HOURS = [
+  '12:00',
+  '13:00',
+  '14:00'
+];
+
 var NOTICE_TITLES = [
   'Большая уютная квартира',
   'Маленькая неуютная квартира',
@@ -42,7 +132,16 @@ var PROPERTY_PHOTOS = [
   'http://o0.github.io/assets/images/tokyo/hotel3.jpg'
 ];
 
+var mapElement = document.querySelector('.map');
+var userPinElement = mapElement.querySelector('.map__pin--main');
+var mapPinsElement = mapElement.querySelector('.map__pins');
+var mapPinTemplate = document.querySelector('template').content.querySelector('.map__pin');
+var mapFiltersElement = mapElement.querySelector('.map__filters-container');
+var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
+var activeCard = null;
 var noticeFormElement = document.querySelector('.ad-form');
+var noticeFormFieldsets = noticeFormElement.querySelectorAll('fieldset');
+var addressInput = noticeFormElement.querySelector('#address');
 var typeSelect = noticeFormElement.querySelector('[name=type]');
 var priceInput = noticeFormElement.querySelector('[name=price]');
 var timeInSelect = noticeFormElement.querySelector('[name=timein]');
@@ -91,14 +190,13 @@ var getRandomItem = function (items) {
 /**
  * Функция, генерирующая объявление случайным образом.
  * @callback generateNoticeCallback
- * @param {string} userNumber - номер пользователя вида '0X',
- * где X - однозначное число
+ * @param {number} userNumber - номер пользователя (однозначное число)
  * @param {string} noticeTitle - заголовок объявления
  * @return {Object} - JS объект, описывающий объявление
  */
 var generateRandomNotice = function (userNumber, noticeTitle) {
-  var locationX = getRandomNumber(300, 900);
-  var locationY = getRandomNumber(150, 500);
+  var locationX = getRandomNumber(MIN_X_LOCATION, MAX_X_LOCATION);
+  var locationY = getRandomNumber(MIN_Y_LOCATION, MAX_Y_LOCATION);
   var featuresList = [];
 
   for (var k = 0; k < PROPERTY_FEATURES.length; k++) {
@@ -109,17 +207,17 @@ var generateRandomNotice = function (userNumber, noticeTitle) {
 
   return {
     author: {
-      avatar: 'img/avatars/user' + userNumber + '.png'
+      avatar: 'img/avatars/user0' + userNumber + '.png'
     },
     offer: {
       title: noticeTitle,
       address: locationX + ', ' + locationY,
-      price: getRandomNumber(1000, 1000000),
+      price: getRandomNumber(MIN_PRICE, MAX_PRICE),
       type: getRandomItem(Object.keys(PROPERTY_TYPES)),
-      rooms: getRandomNumber(1, 5),
-      guests: getRandomNumber(1, 5),
-      checkin: getRandomNumber(12, 14) + ':00',
-      checkout: getRandomNumber(12, 14) + ':00',
+      rooms: getRandomNumber(1, MAX_ROOMS_COUNT),
+      guests: getRandomNumber(1, MAX_ROOMS_COUNT),
+      checkin: getRandomItem(HOURS),
+      checkout: getRandomItem(HOURS),
       features: featuresList,
       description: '',
       photos: shuffle(PROPERTY_PHOTOS)
@@ -138,20 +236,14 @@ var generateRandomNotice = function (userNumber, noticeTitle) {
  * @return {Array.<Object>}
  */
 var generateNotices = function (generateNotice, length) {
-  var userNumbers = [];
   var titles = shuffle(NOTICE_TITLES);
   var notices = [];
 
   for (var i = 0; i < length; i++) {
-    userNumbers[i] = '0' + (i + 1);
-  }
-  userNumbers = shuffle(userNumbers);
-
-  for (var j = 0; j < length; j++) {
-    notices[j] = generateNotice(userNumbers[j], titles[j]);
+    notices[i] = generateNotice(i + 1, titles[i]);
   }
 
-  return notices;
+  return shuffle(notices);
 };
 
 /**
@@ -165,11 +257,21 @@ var renderPin = function (notice, pinTemplate) {
   var pinElement = pinTemplate.cloneNode(true);
   var pinAvatar = pinElement.querySelector('img');
 
-  pinElement.style.left = notice.location.x - 25 + 'px';
-  pinElement.style.top = notice.location.y - 35 + 'px';
+  pinElement.style.left = notice.location.x - PIN_WIDTH / 2 + 'px';
+  pinElement.style.top = notice.location.y - PIN_HEIGHT + 'px';
 
   pinAvatar.src = notice.author.avatar;
   pinAvatar.alt = notice.offer.title;
+
+  pinElement.addEventListener('click', function () {
+    openCard(notice);
+  });
+
+  pinElement.addEventListener('keydown', function (evt) {
+    if (evt.keyCode === ENTER_KEYCODE) {
+      openCard(notice);
+    }
+  });
 
   return pinElement;
 };
@@ -242,6 +344,7 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
   var featureTemplate = featuresElement.querySelector('.popup__feature');
   var photosElement = cardElement.querySelector('.popup__photos');
   var photoTemplate = photosElement.querySelector('.popup__photo');
+  var closeButton = cardElement.querySelector('.popup__close');
   var offer = notice.offer;
 
   fillTemplateWithText(cardElement, '.popup__title', offer.title);
@@ -259,6 +362,17 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
   cardElement.querySelector('.popup__avatar').src = notice.author.avatar;
 
   parentElement.insertBefore(cardElement, nextElement);
+  activeCard = cardElement;
+
+  closeButton.addEventListener('click', function () {
+    closeActiveCard();
+  });
+
+  closeButton.addEventListener('keydown', function (evt) {
+    if (evt.keyCode === ENTER_KEYCODE) {
+      closeActiveCard();
+    }
+  });
 };
 
 /**
@@ -311,26 +425,73 @@ var validateCapacity = function (roomsCount) {
 };
 
 /**
- * Функция, активирующая карту с метками.
+ * Функция, открывающая карточку объявления.
+ * @param {Object} notice - объект, описывающий объявление
  */
-var activateMap = function () {
-  var mapElement = document.querySelector('.map');
-
-  var mapPinsElement = mapElement.querySelector('.map__pins');
-  var mapPinTemplate = document.querySelector('template').content.querySelector('.map__pin');
-
-  var mapFilters = mapElement.querySelector('.map__filters-container');
-  var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
-
-  var noticesData = generateNotices(generateRandomNotice, 8);
-
-  mapElement.classList.remove('map--faded');
-  renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
-  renderCard(noticesData[0], mapElement, mapFilters, mapCardTemplate);
+var openCard = function (notice) {
+  if (activeCard) {
+    closeActiveCard();
+  }
+  renderCard(notice, mapElement, mapFiltersElement, mapCardTemplate);
 };
 
-activateMap();
+/**
+ * Функция, закрывающая текущую карточку объявления.
+ */
+var closeActiveCard = function () {
+  activeCard.remove();
+};
 
+/**
+ * Функция, переводящая страницу в неактивный режим.
+ */
+var deactivatePage = function () {
+  mapElement.classList.add('map--faded');
+  noticeFormElement.classList.add('ad-form--disabled');
+  for (var i = 0; i < noticeFormFieldsets.length; i++) {
+    noticeFormFieldsets[i].disabled = true;
+  }
+};
+
+/**
+ * Функция, переводящая страницу в активный режим.
+ */
+var activatePage = function () {
+  mapElement.classList.remove('map--faded');
+  noticeFormElement.classList.remove('ad-form--disabled');
+  for (var i = 0; i < noticeFormFieldsets.length; i++) {
+    noticeFormFieldsets[i].disabled = false;
+  }
+};
+
+/**
+ * Функция, определяющая адрес метки на карте.
+ * @param {boolean} isActive - находится ли страница в активном режиме
+ */
+var setAddress = function (isActive) {
+  var pinOffsetY = isActive ? (userPinElement.offsetHeight + USER_PIN_POINT_SHIFT) : (userPinElement.offsetHeight / 2);
+  var addressX = userPinElement.offsetLeft + userPinElement.offsetWidth / 2;
+  var addressY = userPinElement.offsetTop + pinOffsetY;
+
+  addressInput.value = addressX + ', ' + addressY;
+};
+
+/**
+ * Функция, отрисовывающая на карте метки похожих объявлений.
+ */
+var renderPins = function () {
+  var noticesData = generateNotices(generateRandomNotice, SIMILAR_NOTICES_COUNT);
+  renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
+};
+
+var inactiveUserPinMouseupHandler = function () {
+  activatePage();
+  renderPins();
+  userPinElement.removeEventListener('mouseup', inactiveUserPinMouseupHandler);
+};
+
+deactivatePage();
+setAddress();
 setMinPrice(typeSelect.value);
 validateCapacity(roomsCountSelect.value);
 
@@ -352,4 +513,9 @@ roomsCountSelect.addEventListener('change', function (evt) {
 
 capacitySelect.addEventListener('change', function (evt) {
   validateCapacity(roomsCountSelect.value);
+});
+
+userPinElement.addEventListener('mouseup', inactiveUserPinMouseupHandler);
+userPinElement.addEventListener('mouseup', function () {
+  setAddress(true);
 });
