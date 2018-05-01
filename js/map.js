@@ -64,13 +64,6 @@ var PIN_WIDTH = 50;
 var PIN_HEIGHT = 70;
 
 /**
- * Высота выступающей части метки пользователя
- * @const
- * @type {number}
- */
-var USER_PIN_POINT_SHIFT = 16;
-
-/**
  * Количество похожих объявлений
  * @const
  * @type {number}
@@ -141,6 +134,7 @@ var mapCardTemplate = document.querySelector('template').content.querySelector('
 var activeCard = null;
 var noticeFormElement = document.querySelector('.ad-form');
 var noticeFormFieldsets = noticeFormElement.querySelectorAll('fieldset');
+var noticeFormFields = noticeFormElement.querySelectorAll('input, select, textarea');
 var addressInput = noticeFormElement.querySelector('#address');
 var typeSelect = noticeFormElement.querySelector('[name=type]');
 var priceInput = noticeFormElement.querySelector('[name=price]');
@@ -148,6 +142,74 @@ var timeInSelect = noticeFormElement.querySelector('[name=timein]');
 var timeOutSelect = noticeFormElement.querySelector('[name=timeout]');
 var roomsCountSelect = noticeFormElement.querySelector('[name=rooms]');
 var capacitySelect = noticeFormElement.querySelector('[name=capacity]');
+
+var isPageActive = false;
+
+/**
+ * Начальные координаты указателя мыши при передвижении пина.
+ * @type {Object}
+ */
+var startPoint = {
+  x: null,
+  y: null
+};
+
+/**
+ * Пользовательский пин.
+ * @type {Object}
+ */
+var userPin = {
+  MIN_X: 0,
+  MAX_X: mapElement.offsetWidth,
+  MIN_Y: MIN_Y_LOCATION,
+  MAX_Y: MAX_Y_LOCATION,
+  INITIAL_LEFT: userPinElement.offsetLeft,
+  INITIAL_TOP: userPinElement.offsetTop,
+  POINT_SHIFT: 16,
+  addressX: null,
+  addressY: null,
+  width: userPinElement.offsetWidth,
+  height: userPinElement.offsetHeight,
+
+  /**
+   * Метод, возвращающий поправку при расчете x-координаты метки или ее адреса.
+   * @return {number}
+   */
+  getShiftX: function () {
+    return this.width / 2;
+  },
+
+  /**
+   * Метод, возвращающий поправку при расчете y-координаты метки или ее адреса,
+   * в зависимости от состояния метки. Если метка находится на неактивной странице,
+   * то ее адресом являются координаты центра, в противном случае адресом являются
+   * координаты острого конца.
+   * @return {number}
+   */
+  getShiftY: function () {
+    return isPageActive ? (this.height + this.POINT_SHIFT) : (this.height / 2);
+  },
+
+  /**
+   * Метод, вычисляющий адрес острого конца или середины метки по ее положению на карте.
+   */
+  resetAddress: function () {
+    this.addressX = this.INITIAL_LEFT + this.getShiftX();
+    this.addressY = this.INITIAL_TOP + this.getShiftY();
+  },
+
+  /**
+   * Метод, устанавливающий адрес метки по заданным координатам.
+   * Если координаты метки выходят за границы допустимых значений, то
+   * устанавливается минимально или максимально допустимое значение
+   * @param {number} newAddressX - x-координата острого конца или середины пина
+   * @param {number} newAddressY - y-координата острого конца или середины пина
+   */
+  setAddress: function (newAddressX, newAddressY) {
+    this.addressX = Math.max(this.MIN_X, Math.min(this.MAX_X, newAddressX));
+    this.addressY = Math.max(this.MIN_Y, Math.min(this.MAX_Y, newAddressY));
+  }
+};
 
 /**
  * Функция, выполняющая перестановку элементов массива случайным образом.
@@ -376,6 +438,35 @@ var renderCard = function (notice, parentElement, nextElement, cardTemplate) {
 };
 
 /**
+ * Функция, подсвечивающая поле красной рамкой.
+ * @param {Object} target - поле формы
+ */
+var markInvalid = function (target) {
+  target.classList.add('invalid');
+};
+
+/**
+ * Функция, снимающая подсветку поля красной рамкой.
+ * @param {Object} target - поле формы
+ */
+var markValid = function (target) {
+  target.classList.remove('invalid');
+};
+
+/**
+ * Функция, устанавливающая или снимающая подсветку поля красной рамкой,
+ * в зависимости от правильности введенных данных.
+ * @param {Object} target - поле формы
+ */
+var changeValidityIndicator = function (target) {
+  // Сброс рамки
+  markValid(target);
+
+  // Если поле не валидно, оно подсвечивается
+  target.checkValidity();
+};
+
+/**
  * Функция, устанавливающая нижнюю границу цены и плейсхолдер в зависимости от типа помещения.
  * @param {string} propertyType - тип помещения
  */
@@ -383,33 +474,28 @@ var setMinPrice = function (propertyType) {
   var price = PROPERTY_MIN_PRICES[propertyType];
   priceInput.min = price;
   priceInput.placeholder = price;
+  changeValidityIndicator(priceInput);
 };
 
 /**
  * Функция, синхронизирующая время заезда с временем выезда.
- * @param {string} timeOut - время выезда
+ * @param {Object} timeSelect - DOM-элемент выбора времени заезда или выезда
+ * @param {string} timeValue - время заезда/выезда
  */
-var setTimeIn = function (timeOut) {
-  timeInSelect.value = timeOut;
-};
-
-/**
- * Функция, синхронизирующая время выезда с временем заезда.
- * @param {string} timeIn - время заезда
- */
-var setTimeOut = function (timeIn) {
-  timeOutSelect.value = timeIn;
+var setTime = function (timeSelect, timeValue) {
+  timeSelect.value = timeValue;
 };
 
 /**
  * Функция, устанавливающая сообщение об ошибке для поля выбора количества гостей.
  * @param {number} minGuests - минимальное количество гостей
- * @param {(string|number)} maxGuests - минимальное количество гостей
+ * @param {(string|number)} maxGuests - максимальное количество гостей
  * @param {string} validationMessage - сообщение об ошибке
  */
 var setCapacityValidity = function (minGuests, maxGuests, validationMessage) {
   var message = capacitySelect.value < minGuests || capacitySelect.value > maxGuests ? validationMessage : '';
   capacitySelect.setCustomValidity(message);
+  changeValidityIndicator(capacitySelect);
 };
 
 /**
@@ -451,6 +537,7 @@ var deactivatePage = function () {
   for (var i = 0; i < noticeFormFieldsets.length; i++) {
     noticeFormFieldsets[i].disabled = true;
   }
+  isPageActive = false;
 };
 
 /**
@@ -462,18 +549,23 @@ var activatePage = function () {
   for (var i = 0; i < noticeFormFieldsets.length; i++) {
     noticeFormFieldsets[i].disabled = false;
   }
+  isPageActive = true;
 };
 
 /**
- * Функция, определяющая адрес метки на карте.
- * @param {boolean} isActive - находится ли страница в активном режиме
+ * Функция, возвращающая страницу в исходное состояние.
  */
-var setAddress = function (isActive) {
-  var pinOffsetY = isActive ? (userPinElement.offsetHeight + USER_PIN_POINT_SHIFT) : (userPinElement.offsetHeight / 2);
-  var addressX = userPinElement.offsetLeft + userPinElement.offsetWidth / 2;
-  var addressY = userPinElement.offsetTop + pinOffsetY;
-
-  addressInput.value = addressX + ', ' + addressY;
+var resetPage = function () {
+  if (activeCard) {
+    activeCard.remove();
+  }
+  deletePins();
+  deactivatePage();
+  userPin.resetAddress();
+  setAddressField();
+  setUserPinPosition();
+  setMinPrice(typeSelect.value);
+  validateCapacity(roomsCountSelect.value);
 };
 
 /**
@@ -484,38 +576,141 @@ var renderPins = function () {
   renderElements(noticesData, mapPinsElement, mapPinTemplate, renderPin);
 };
 
-var inactiveUserPinMouseupHandler = function () {
-  activatePage();
-  renderPins();
-  userPinElement.removeEventListener('mouseup', inactiveUserPinMouseupHandler);
+/**
+ * Функция, удаляющая с карты метки похожих объявлений.
+ */
+var deletePins = function () {
+  var pins = mapPinsElement.querySelectorAll('.map__pin:not(.map__pin--main)');
+  for (var i = 0; i < pins.length; i++) {
+    pins[i].remove();
+  }
 };
 
-deactivatePage();
-setAddress();
-setMinPrice(typeSelect.value);
-validateCapacity(roomsCountSelect.value);
+/**
+ * Функция, сохраняющая начальные координаты указателя мыши при перемещении метки.
+ * @param {number} startX - x-координата указателя мыши
+ * @param {number} startY - y-координата указателя мыши
+ */
+var setStartPoint = function (startX, startY) {
+  startPoint.x = startX;
+  startPoint.y = startY;
+};
+
+/**
+ * Функция, устанавливающая адрес острого конца (или середины) метки пользователя
+ * в поле ввода.
+ */
+var setAddressField = function () {
+  addressInput.value = userPin.addressX + ', ' + userPin.addressY;
+};
+
+/**
+ * Функция, задающая позицию метки пользователя на карте в зависимости от
+ * координат, указанных в поле ввода адреса.
+ */
+var setUserPinPosition = function () {
+  userPinElement.style.left = (userPin.addressX - userPin.getShiftX()) + 'px';
+  userPinElement.style.top = (userPin.addressY - userPin.getShiftY()) + 'px';
+};
+
+/**
+ * Функция, подготавливающая метку пользователя к перемещению.
+ * @param {number} startX - начальная x-координата указателя мыши
+ * @param {number} startY - начальная y-координата указателя мыши
+ */
+var startMovingUserPin = function (startX, startY) {
+  setStartPoint(startX, startY);
+
+  document.addEventListener('mousemove', documentMouseMoveHandler);
+  document.addEventListener('mouseup', documentMouseUpHandler);
+};
+
+/**
+ * Функция, перемещающая метку пользователя вслед за указателем мыши.
+ * @param {number} endX - конечная x-координата указателя мыши
+ * @param {number} endY - конечная y-координата указателя мыши
+ */
+var moveUserPinTo = function (endX, endY) {
+  var mouseShift = {
+    x: endX - startPoint.x,
+    y: endY - startPoint.y
+  };
+
+  userPin.setAddress(userPin.addressX + mouseShift.x, userPin.addressY + mouseShift.y);
+  setAddressField();
+  setUserPinPosition();
+  setStartPoint(endX, endY);
+};
+
+/**
+ * Функция, завершающая перемещение метки пользователя
+ */
+var finishMovingUserPin = function () {
+  if (!isPageActive) {
+    activatePage();
+    renderPins();
+  }
+  setUserPinPosition();
+  document.removeEventListener('mousemove', documentMouseMoveHandler);
+  document.removeEventListener('mouseup', documentMouseUpHandler);
+};
+
+/**
+ * Обработчик перемещения мыши
+ * @param {Object} evt - объект события
+ */
+var documentMouseMoveHandler = function (evt) {
+  evt.preventDefault();
+  moveUserPinTo(evt.clientX, evt.clientY);
+};
+
+/**
+ * Обработчик отжатия мыши
+ * @param {Object} evt - объект события
+ */
+var documentMouseUpHandler = function (evt) {
+  evt.preventDefault();
+  finishMovingUserPin();
+};
+
+resetPage();
 
 typeSelect.addEventListener('change', function (evt) {
   setMinPrice(evt.target.value);
 });
 
 timeInSelect.addEventListener('change', function (evt) {
-  setTimeOut(evt.target.value);
+  setTime(timeOutSelect, evt.target.value);
 });
 
 timeOutSelect.addEventListener('change', function (evt) {
-  setTimeIn(evt.target.value);
+  setTime(timeInSelect, evt.target.value);
 });
 
 roomsCountSelect.addEventListener('change', function (evt) {
   validateCapacity(evt.target.value);
 });
 
-capacitySelect.addEventListener('change', function (evt) {
+capacitySelect.addEventListener('change', function () {
   validateCapacity(roomsCountSelect.value);
 });
 
-userPinElement.addEventListener('mouseup', inactiveUserPinMouseupHandler);
-userPinElement.addEventListener('mouseup', function () {
-  setAddress(true);
+noticeFormElement.addEventListener('reset', function () {
+  resetPage();
 });
+
+userPinElement.addEventListener('mousedown', function (evt) {
+  evt.preventDefault();
+  startMovingUserPin(evt.clientX, evt.clientY);
+});
+
+for (var i = 0; i < noticeFormFields.length; i++) {
+  var formField = noticeFormFields[i];
+
+  formField.addEventListener('invalid', function (evt) {
+    markInvalid(evt.target);
+  });
+  formField.addEventListener('blur', function (evt) {
+    changeValidityIndicator(evt.target);
+  });
+}
