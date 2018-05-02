@@ -1,8 +1,8 @@
 'use strict';
 
 (function () {
-  var userPinElement = window.map.getElement.querySelector('.map__pin--main');
-  var addressInput = noticeFormElement.querySelector('#address');
+  var userPinElement = window.map.getElement().querySelector('.map__pin--main');
+  var addressInput = window.form.getElement().querySelector('#address');
 
   /**
    * Пользовательский пин.
@@ -10,9 +10,9 @@
    */
   var userPin = {
     MIN_X: 0,
-    MAX_X: window.map.getElement.offsetWidth,
-    MIN_Y: 150,
-    MAX_Y: 500,
+    MAX_X: window.map.getElement().offsetWidth,
+    MIN_Y: window.map.getMinY(),
+    MAX_Y: window.map.getMaxY(),
     INITIAL_LEFT: userPinElement.offsetLeft,
     INITIAL_TOP: userPinElement.offsetTop,
     POINT_SHIFT: 16,
@@ -37,11 +37,11 @@
      * @return {number}
      */
     getShiftY: function () {
-      return isPageActive ? (this.height + this.POINT_SHIFT) : (this.height / 2);
+      return window.map.isActive ? (this.height + this.POINT_SHIFT) : (this.height / 2);
     },
 
     /**
-     * Метод, вычисляющий адрес острого конца или середины метки по ее положению на карте.
+     * Метод, устанавливающий исходный адрес метки.
      */
     resetAddress: function () {
       this.addressX = this.INITIAL_LEFT + this.getShiftX();
@@ -130,9 +130,9 @@
    * Функция, завершающая перемещение метки пользователя
    */
   var finishMovingUserPin = function () {
-    if (!isPageActive) {
-      activatePage();
-      renderPins();
+    if (!window.map.isActive) {
+      window.form.enable();
+      window.map.enable();
     }
     setUserPinPosition();
     document.removeEventListener('mousemove', documentMouseMoveHandler);
@@ -161,4 +161,13 @@
     evt.preventDefault();
     startMovingUserPin(evt.clientX, evt.clientY);
   });
+
+  /**
+   * Функция, возвращающая метку пользователя в исходное положение
+   */
+  window.resetUserPinPosition = function () {
+    userPin.resetAddress();
+    setAddressField();
+    setUserPinPosition();
+  };
 })();

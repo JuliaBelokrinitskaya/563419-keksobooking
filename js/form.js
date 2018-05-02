@@ -48,7 +48,9 @@
     var price = window.data.getPropertyMinPrice(propertyType);
     priceInput.min = price;
     priceInput.placeholder = price;
-    changeValidityIndicator(priceInput);
+    if (priceInput.value) {
+      changeValidityIndicator(priceInput);
+    }
   };
 
   /**
@@ -84,6 +86,16 @@
     }
   };
 
+  /**
+   * Функция, делающая поля формы активными или неактивными
+   * @param {boolean} isDisabled - значение атрибута disabled, которое требуется присвоить полям формы
+   */
+  var disableInputs = function (isDisabled) {
+    for (var i = 0; i < noticeFormFieldsets.length; i++) {
+      noticeFormFieldsets[i].disabled = isDisabled;
+    }
+  };
+
   typeSelect.addEventListener('change', function (evt) {
     setMinPrice(evt.target.value);
   });
@@ -104,10 +116,6 @@
     validateCapacity(roomsCountSelect.value);
   });
 
-  noticeFormElement.addEventListener('reset', function () {
-    resetPage();
-  });
-
   for (var i = 0; i < noticeFormFields.length; i++) {
     var formField = noticeFormFields[i];
 
@@ -118,4 +126,32 @@
       changeValidityIndicator(evt.target);
     });
   }
+
+  window.form = {
+    /**
+     * Метод, возвращающий DOM-элемент формы.
+     * @return {Object}
+     */
+    getElement: function () {
+      return noticeFormElement;
+    },
+
+    /**
+     * Метод, возвращающий форму в исходное состояние.
+     */
+    reset: function () {
+      setMinPrice(typeSelect.value);
+      validateCapacity(roomsCountSelect.value);
+      disableInputs(true);
+      noticeFormElement.classList.add('ad-form--disabled');
+    },
+
+    /**
+     * Метод, включающий форму.
+     */
+    enable: function () {
+      noticeFormElement.classList.remove('ad-form--disabled');
+      disableInputs(false);
+    }
+  };
 })();

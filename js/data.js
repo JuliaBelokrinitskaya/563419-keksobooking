@@ -2,6 +2,20 @@
 
 (function () {
   /**
+   * Наименьшая y-координата метки (для похожих объявлений)
+   * @const
+   * @type {number}
+   */
+  var MIN_Y_LOCATION = 150;
+
+  /**
+   * Наибольшая y-координата метки (для похожих объявлений)
+   * @const
+   * @type {number}
+   */
+  var MAX_Y_LOCATION = 500;
+
+  /**
    * Наименьшая x-координата метки (для похожих объявлений)
    * @const
    * @type {number}
@@ -90,56 +104,18 @@
   ];
 
   /**
-   * Функция, выполняющая перестановку элементов массива случайным образом.
-   * @param {Array.<*>} items - массив элементов
-   * @return {Array.<*>} - новый массив с переставленными элементами
-   */
-  var shuffle = function (items) {
-    var shuffledItems = items.slice();
-
-    for (var i = shuffledItems.length; i > 1; i--) {
-      var randomIndex = Math.floor(Math.random() * i);
-      var itemCopy = shuffledItems[i - 1];
-      shuffledItems[i - 1] = shuffledItems[randomIndex];
-      shuffledItems[randomIndex] = itemCopy;
-    }
-
-    return shuffledItems;
-  };
-
-  /**
-   * Функция, выбирающая случайное число из заданного промежутка.
-   * @param {number} startNumber - начальное число промежутка
-   * @param {number} endNumber - конечное число промежутка
-   * @return {number} - случайное число из заданного промежутка,
-   * включая startNumber и endNumber
-   */
-  var getRandomNumber = function (startNumber, endNumber) {
-    return Math.floor(Math.random() * (endNumber - startNumber + 1)) + startNumber;
-  };
-
-  /**
-   * Функция, выбирающая случайный элемент в массиве.
-   * @param {Array.<*>} items - массив элементов
-   * @return {*} - случайный элемент массива
-   */
-  var getRandomItem = function (items) {
-    return items[Math.floor(Math.random() * items.length)];
-  };
-
-  /**
    * Функция, генерирующая объявление случайным образом.
    * @param {number} userNumber - номер пользователя (однозначное число)
    * @param {string} noticeTitle - заголовок объявления
    * @return {Object} - JS объект, описывающий объявление
    */
   var generateNotice = function (userNumber, noticeTitle) {
-    var locationX = getRandomNumber(MIN_X_LOCATION, MAX_X_LOCATION);
-    var locationY = getRandomNumber(MIN_Y_LOCATION, MAX_Y_LOCATION);
+    var locationX = window.util.getRandomNumber(MIN_X_LOCATION, MAX_X_LOCATION);
+    var locationY = window.util.getRandomNumber(MIN_Y_LOCATION, MAX_Y_LOCATION);
     var featuresList = [];
 
     for (var k = 0; k < PROPERTY_FEATURES.length; k++) {
-      if (getRandomNumber(0, 1)) {
+      if (window.util.getRandomNumber(0, 1)) {
         featuresList.push(PROPERTY_FEATURES[k]);
       }
     }
@@ -151,15 +127,15 @@
       offer: {
         title: noticeTitle,
         address: locationX + ', ' + locationY,
-        price: getRandomNumber(MIN_PRICE, MAX_PRICE),
-        type: getRandomItem(Object.keys(PROPERTY_TYPES)),
-        rooms: getRandomNumber(1, MAX_ROOMS_COUNT),
-        guests: getRandomNumber(1, MAX_ROOMS_COUNT),
-        checkin: getRandomItem(HOURS),
-        checkout: getRandomItem(HOURS),
+        price: window.util.getRandomNumber(MIN_PRICE, MAX_PRICE),
+        type: window.util.getRandomItem(Object.keys(PROPERTY_TYPES)),
+        rooms: window.util.getRandomNumber(1, MAX_ROOMS_COUNT),
+        guests: window.util.getRandomNumber(1, MAX_ROOMS_COUNT),
+        checkin: window.util.getRandomItem(HOURS),
+        checkout: window.util.getRandomItem(HOURS),
         features: featuresList,
         description: '',
-        photos: shuffle(PROPERTY_PHOTOS)
+        photos: window.util.shuffle(PROPERTY_PHOTOS)
       },
       location: {
         x: locationX,
@@ -201,14 +177,14 @@
      * @return {Array.<Object>}
      */
     getNotices: function (length) {
-      var titles = shuffle(NOTICE_TITLES);
+      var titles = window.util.shuffle(NOTICE_TITLES);
       var notices = [];
 
       for (var i = 0; i < length; i++) {
         notices[i] = generateNotice(i + 1, titles[i]);
       }
 
-      return shuffle(notices);
+      return window.util.shuffle(notices);
     }
   };
 })();

@@ -25,10 +25,11 @@
   var mapElement = document.querySelector('.map');
   var mapPinsElement = mapElement.querySelector('.map__pins');
   var mapPinTemplate = document.querySelector('template').content.querySelector('.map__pin');
-  var mapFiltersElement = mapElement.querySelector('.map__filters-container');
   var mapCardTemplate = document.querySelector('template').content.querySelector('.map__card');
+  var mapFiltersElement = mapElement.querySelector('.map__filters-container');
 
   var activeCard = null;
+  var noticesData = [];
   var pins = [];
 
   /**
@@ -44,7 +45,6 @@
     closeButton.addEventListener('click', function () {
       closeActiveCard();
     });
-
     closeButton.addEventListener('keydown', function (evt) {
       if (window.util.isEnterEvent(evt)) {
         closeActiveCard();
@@ -61,7 +61,47 @@
     }
   };
 
+  /**
+   * Функция, отрисовывающая на карте метки похожих объявлений.
+   */
+  var renderPins = function () {
+    noticesData = window.data.getNotices(SIMILAR_NOTICES_COUNT);
+    pins = window.util.renderElements(noticesData, mapPinsElement, mapPinTemplate, window.renderPin);
+
+    for (var i = 0; i < pins.length; i++) {
+      addPinEventListeners(pins[i], i);
+    }
+  };
+
+  /**
+   * Функция, добавляющая обработчики событий для метки.
+   * @param {Object} pin - метка похожего объявления
+   * @param {number} i - позиция объявления в массиве noticesData
+   */
+  var addPinEventListeners = function (pin, i) {
+    pin.addEventListener('click', function () {
+      openCard(noticesData[i]);
+    });
+
+    pin.addEventListener('keydown', function (evt) {
+      if (window.util.isEnterEvent(evt)) {
+        openCard(noticesData[i]);
+      }
+    });
+  };
+
+  /**
+   * Функция, удаляющая с карты метки похожих объявлений.
+   */
+  var deletePins = function () {
+    for (var i = 0; i < pins.length; i++) {
+      pins[i].remove();
+    }
+  };
+
   window.map = {
+    isActive: false,
+
     /**
      * Метод, возвращающий DOM-элемент карты.
      * @return {Object}
@@ -71,33 +111,40 @@
     },
 
     /**
-     * Метод, отрисовывающий на карте метки похожих объявлений.
+     * Метод, возвращающий минимально возможную y-координату метки на карте.
+     * @return {number}
      */
-    renderPins: function () {
-      var noticesData = window.getNotices(SIMILAR_NOTICES_COUNT);
-      pins = window.util.renderElements(noticesData, mapPinsElement, mapPinTemplate, window.renderPin);
-      for (var i = 0; i < pins.length; i++) {
-        var notice = noticesData[i];
-
-        pins[i].addEventListener('click', function () {
-          openCard(notice);
-        });
-
-        pins[i].addEventListener('keydown', function (evt) {
-          if (window.util.isEnterEvent(evt)) {
-            openCard(notice);
-          }
-        });
-      }
+    getMinY: function () {
+      return MIN_Y_LOCATION;
     },
 
     /**
-     * Метод, удаляющий с карты метки похожих объявлений.
+     * Метод, возвращающий максимально возможную y-координату метки на карте.
+     * @return {number}
      */
-    deletePins: function () {
-      for (var i = 0; i < pins.length; i++) {
-        pins[i].remove();
-      }
+    getMaxY: function () {
+      return MAX_Y_LOCATION;
+    },
+
+    closeCard: closeActiveCard,
+
+    /**
+     * Метод, возвращающий карту в исходное состояние.
+     */
+    reset: function () {
+      closeActiveCard();
+      deletePins();
+      mapElement.classList.add('map--faded');
+      this.isActive = false;
+    },
+
+    /**
+     * Метод, переводящий карту в активный режим.
+     */
+    enable: function () {
+      mapElement.classList.remove('map--faded');
+      renderPins();
+      this.isActive = true;
     }
   };
 })();
