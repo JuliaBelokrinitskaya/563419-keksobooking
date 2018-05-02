@@ -2,6 +2,20 @@
 
 (function () {
   /**
+   * Наименьшая y-координата метки
+   * @const
+   * @type {number}
+   */
+  var MIN_Y_LOCATION = 150;
+
+  /**
+   * Наибольшая y-координата метки
+   * @const
+   * @type {number}
+   */
+  var MAX_Y_LOCATION = 500;
+
+  /**
    * Количество похожих объявлений
    * @const
    * @type {number}
