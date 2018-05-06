@@ -40,12 +40,12 @@
    */
   var passesFilters = function (offer) {
     return (isNotSelected(typeFilter) || offer.type === typeFilter.value)
-      && (isNotSelected(priceFilter) || getPriceRange(offer.price) === priceFilter.value)
-      && (isNotSelected(roomsFilter) || offer.rooms === parseInt(roomsFilter.value, 10))
-      && (isNotSelected(guestsFilter) || offer.guests === parseInt(guestsFilter.value, 10))
-      && [].every.call(featuresFilters, function (feature) {
-        return !(feature.checked) || offer.features.includes(feature.value);
-      });
+    && (isNotSelected(priceFilter) || getPriceRange(offer.price) === priceFilter.value)
+    && (isNotSelected(roomsFilter) || offer.rooms === parseInt(roomsFilter.value, 10))
+    && (isNotSelected(guestsFilter) || offer.guests === parseInt(guestsFilter.value, 10))
+    && [].every.call(featuresFilters, function (feature) {
+      return !(feature.checked) || offer.features.includes(feature.value);
+    });
   };
 
   /** Обработчик события изменения фильтра
