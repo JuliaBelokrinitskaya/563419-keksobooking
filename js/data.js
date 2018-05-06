@@ -22,6 +22,8 @@
     bungalo: 0
   };
 
+  var noticesData = [];
+
   window.data = {
     /**
      * Метод, возвращающий русское название типа жилья.
@@ -47,6 +49,22 @@
      */
     getNoGuestsRoomsCount: function () {
       return NO_GUESTS_ROOMS_COUNT;
+    },
+
+    /**
+     * Метод, возвращающий копию списка похожих объявлений.
+     * @return {Array.<Object>}
+     */
+    getNotices: function () {
+      return noticesData.slice();
+    },
+
+    /**
+     * Метод, сохраняющий список похожих объявлений.
+     * @param {Array.<Object>} notices - массив объявлений
+     */
+    setNotices: function (notices) {
+      noticesData = notices;
     }
   };
 })();
